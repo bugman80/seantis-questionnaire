@@ -7,6 +7,7 @@ from utils import split_numal
 import json
 from parsers import parse_checks, ParseException
 from django.conf import settings
+from django.contrib.auth import get_user_model
 
 _numre = re.compile("(\d+)([a-z]+)", re.I)
 
@@ -18,6 +19,7 @@ class Subject(models.Model):
         # Can be changed from elsewhere with
         # Subject.STATE_CHOICES[:] = [ ('blah', 'Blah') ]
     ]
+    user = models.OneToOneField(get_user_model(), blank=True, null=True)
     state = models.CharField(max_length=16, default="inactive",
         choices = STATE_CHOICES, verbose_name=_('State'))
     surname = models.CharField(max_length=64, blank=True, null=True,

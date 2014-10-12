@@ -26,6 +26,7 @@ import logging
 import random
 from hashlib import md5
 import re
+import email
 
 
 try:
@@ -1017,10 +1018,15 @@ def generate_run(request, questionnaire_id):
     """
     qu = get_object_or_404(Questionnaire, id=questionnaire_id)
     qs = qu.questionsets()[0]
-    su = Subject.objects.filter(givenname='Anonymous', surname='User')[0:1]
-    if su:
-        su = su[0]
+    
+    user = getattr(request, "user", None)
+
+    if user and user.is_authenticated():
+        su = Subject.objects.get(user=user)
     else:
+        su = Subject.objects.filter(givenname='Anonymous', surname='User').first()
+    
+    if not su:
         su = Subject(givenname='Anonymous', surname='User')
         su.save()
 
