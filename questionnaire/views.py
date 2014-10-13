@@ -27,6 +27,7 @@ import random
 from hashlib import md5
 import re
 import email
+from celery.worker.strategy import default
 
 
 try:
@@ -1020,9 +1021,12 @@ def generate_run(request, questionnaire_id):
     qs = qu.questionsets()[0]
     
     user = getattr(request, "user", None)
-
+    
     if user and user.is_authenticated():
-        su = Subject.objects.get(user=user)
+        default_values = {'givenname': user.first_name,
+                          'surname': user.last_name,
+                          'email': user.email}
+        su, _ = Subject.objects.get_or_create(user=user, defaults=default_values)
     else:
         su = Subject.objects.filter(givenname='Anonymous', surname='User').first()
     
@@ -1033,7 +1037,7 @@ def generate_run(request, questionnaire_id):
     str_to_hash = "".join(map(lambda i: chr(random.randint(0, 255)), range(16)))
     str_to_hash += settings.SECRET_KEY
     key = md5(str_to_hash).hexdigest()
-
+    
     run = RunInfo(subject=su, random=key, runid=key, questionset=qs)
     run.save()
     if not use_session:
