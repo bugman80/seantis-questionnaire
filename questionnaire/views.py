@@ -608,11 +608,16 @@ def show_questionnaire(request, runinfo, errors={}):
                     qvalues[s[1]+'_'+s[2]] = v
                 else:
                     qvalues[s[1]] = v
-
+    
     if use_session:
         prev_url = reverse('redirect_to_prev_questionnaire')
     else:
-        prev_url = 'javascript:history.back();'
+        current_questionset = runinfo.questionset
+        sortid = current_questionset.sortid if current_questionset.is_first() else current_questionset.prev().sortid
+        args = [runinfo.random, sortid]
+        urlname = 'questionset'
+        prev_url = reverse(urlname, args=args)
+        #prev_url = 'javascript:history.back();'
     r = r2r("questionnaire/questionset.html", request,
         questionset=runinfo.questionset,
         runinfo=runinfo,

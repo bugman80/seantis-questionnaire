@@ -8,6 +8,10 @@ def question_yesno(request, question):
     from questionnaire.models import Answer
     key = "question_%s" % question.number
     key2 = "question_%s_comment" % question.number
+    qtype = question.get_type()
+    cd = question.getcheckdict()
+    jstriggers = []
+    qvalue = ''
     
     if request.method == 'POST':
         val = request.POST.get(key, None)
@@ -23,14 +27,15 @@ def question_yesno(request, question):
             answers = answer_obj.split_answer()
             val = answers[0] if len(answers)>0 else None
             cmt = answers[1] if len(answers)>1 else ''
+            #made for triggering the javascript onclick
+            if val:
+                qvalue = '%s' % val
         else:
             val = None
             cmt = ''
         
     
-    qtype = question.get_type()
-    cd = question.getcheckdict()
-    jstriggers = []
+    
 
     if qtype == 'choice-yesnocomment':
         hascomment = True
@@ -48,7 +53,7 @@ def question_yesno(request, question):
     checks = ''
     if hascomment:
         if cd.get('required-yes'):
-            jstriggers = ['%s_comment' % question.number]
+            jstriggers.append('%s_comment' % question.number)
             checks = ' checks="dep_check(\'%s,yes\')"' % question.number
         elif cd.get('required-no'):
             checks = ' checks="dep_check(\'%s,no\')"' % question.number
@@ -59,7 +64,7 @@ def question_yesno(request, question):
         'required' : True,
         'checks' : checks,
         'value' : val,
-        'qvalue' : '',
+        'qvalue' : qvalue,
         'hascomment' : hascomment,
         'hasdontknow' : hasdontknow,
         'comment' : cmt,
