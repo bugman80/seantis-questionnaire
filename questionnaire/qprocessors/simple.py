@@ -1,13 +1,33 @@
-from questionnaire import *
+from questionnaire import question_proc, answer_proc, add_type, AnswerException
 from django.utils.translation import ugettext as _
 from json import dumps
 
+
 @question_proc('choice-yesno','choice-yesnocomment','choice-yesnodontknow')
 def question_yesno(request, question):
+    from questionnaire.models import Answer
     key = "question_%s" % question.number
     key2 = "question_%s_comment" % question.number
-    val = request.POST.get(key, None)
-    cmt = request.POST.get(key2, '')
+    
+    if request.method == 'POST':
+        val = request.POST.get(key, None)
+        cmt = request.POST.get(key2, '')
+    else:
+        # IMPORTANT!! we put subject=request.user.subject because 
+        # only the author of the questionnaire can see his answers!! 
+        # (VERIFY IF IT'S WHAT WE WANT..)
+        answer_obj = Answer.objects.filter(subject=request.user.subject, 
+                                       question=question, 
+                                       runid=request.runinfo.runid).first()
+        if answer_obj:
+            answers = answer_obj.split_answer()
+            val = answers[0] if len(answers)>0 else None
+            cmt = answers[1] if len(answers)>1 else ''
+        else:
+            val = None
+            cmt = ''
+        
+    
     qtype = question.get_type()
     cd = question.getcheckdict()
     jstriggers = []
@@ -49,10 +69,25 @@ def question_yesno(request, question):
 
 @question_proc('open', 'open-textfield')
 def question_open(request, question):
+    from questionnaire.models import Answer
     key = "question_%s" % question.number
     value = question.getcheckdict().get('default','')
-    if key in request.POST:
-        value = request.POST[key]
+    
+    if request.method == 'POST':
+        if key in request.POST:
+            value = request.POST[key]
+    else:
+        # IMPORTANT!! we put subject=request.user.subject because 
+        # only the author of the questionnaire can see his answers!! 
+        # (VERIFY IF IT'S WHAT WE WANT..)
+        answer_obj = Answer.objects.filter(subject=request.user.subject, 
+                                           question=question, 
+                                           runid=request.runinfo.runid).first()
+        if answer_obj:
+            answers = answer_obj.split_answer()
+            if len(answers)>0:
+                value = answers[0]
+    
     return {
         'required' : question.getcheckdict().get('required', False),
         'value' : value,

@@ -1,21 +1,34 @@
 from questionnaire import *
 from django.utils.translation import ugettext as _, ungettext
 from json import dumps
+from six import string_types
 
 @question_proc('choice', 'choice-freeform')
 def question_choice(request, question):
+    from questionnaire.models import Answer
     choices = []
     jstriggers = []
 
     cd = question.getcheckdict()
     key = "question_%s" % question.number
     key2 = "question_%s_comment" % question.number
-    val = None
-    if key in request.POST:
-        val = request.POST[key]
+    val = cd.get('default', None)
+    
+    if request.method == 'POST':
+        if key in request.POST:
+            val = request.POST[key]
     else:
-        if 'default' in cd:
-            val = cd['default']
+        # IMPORTANT!! we put subject=request.user.subject because 
+        # only the author of the questionnaire can see his answers!! 
+        # (VERIFY IF IT'S WHAT WE WANT..)
+        answer_obj = Answer.objects.filter(subject=request.user.subject, 
+                                           question=question, 
+                                           runid=request.runinfo.runid).first()
+        if answer_obj:
+            answers = answer_obj.split_answer()
+            if len(answers)>0:
+                val = answers[0]
+
     for choice in question.choices():
         choices.append( ( choice.value == val, choice, ) )
 
@@ -46,6 +59,8 @@ def process_choice(question, answer):
         if opt not in valid:
             raise AnswerException(_(u'Invalid option!'))
     return dumps([opt])
+
+
 add_type('choice', 'Choice [radio]')
 add_type('choice-freeform', 'Choice with a freeform option [radio]')
 
@@ -55,26 +70,70 @@ def question_multiple(request, question):
     key = "question_%s" % question.number
     choices = []
     counter = 0
+    
+    from questionnaire.models import Answer
+
     cd = question.getcheckdict()
     defaults = cd.get('default','').split(',')
     for choice in question.choices():
         counter += 1
         key = "question_%s_multiple_%d" % (question.number, choice.sortid)
-        if key in request.POST or \
-          (request.method == 'GET' and choice.value in defaults):
-            choices.append( (choice, key, ' checked',) )
+        
+        if request.method == 'POST':
+            if key in request.POST:
+                choices.append( (choice, key, ' checked',) )
+            else:
+                choices.append( (choice, key, '',) )
         else:
-            choices.append( (choice, key, '',) )
+            answer_obj = Answer.objects.filter(subject=request.user.subject, 
+                                               question=question, 
+                                               runid=request.runinfo.runid).first()
+            if answer_obj:
+                answers = [a for a in answer_obj.split_answer() if isinstance(a, string_types)]
+                if choice.value in answers:
+                    choices.append( (choice, key, ' checked',) )
+                else:
+                    choices.append( (choice, key, '',) )
+            else:
+                if choice.value in defaults:
+                    choices.append( (choice, key, ' checked',) )
+                else:
+                    choices.append( (choice, key, '',) )
+        
+#         if key in request.POST or \
+#           (request.method == 'GET' and choice.value in defaults):
+#             choices.append( (choice, key, ' checked',) )
+#         else:
+#             choices.append( (choice, key, '',) )
+    
+    
     extracount = int(cd.get('extracount', 0))
     if not extracount and question.type == 'choice-multiple-freeform':
         extracount = 1
     extras = []
     for x in range(1, extracount+1):
         key = "question_%s_more%d" % (question.number, x)
-        if key in request.POST:
-            extras.append( (key, request.POST[key],) )
+        if request.method == 'POST':
+            if key in request.POST:
+                extras.append( (key, request.POST[key],) )
+            else:
+                extras.append( (key, '',) )
         else:
-            extras.append( (key, '',) )
+            answer_obj = Answer.objects.filter(subject=request.user.subject, 
+                                               question=question, 
+                                               runid=request.runinfo.runid).first()
+            if answer_obj:
+                extras_answers = [a for a in answer_obj.split_answer() if not isinstance(a, string_types)]
+                if len(extras_answers) > 0 and len(extras_answers[0])>x-1:
+                    extras.append( (key, extras_answers[0][x-1],) )
+                else:
+                    extras.append( (key, '',) )
+            else:
+                extras.append( (key, '',) )
+#         if key in request.POST:
+#             extras.append( (key, request.POST[key],) )
+#         else:
+#             extras.append( (key, '',) )
     return {
         "choices": choices,
         "extras": extras,
@@ -111,7 +170,9 @@ def process_multiple(question, answer):
     multiple.sort()
     if multiple_freeform:
         multiple.append(multiple_freeform)
+    
     return dumps(multiple)
+
 add_type('choice-multiple', 'Multiple-Choice, Multiple-Answers [checkbox]')
 add_type('choice-multiple-freeform', 'Multiple-Choice, Multiple-Answers, plus freeform [checkbox, input]')
 
