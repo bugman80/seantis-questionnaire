@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+
 def split_numal(val):
     """Split, for example, '1a' into (1, 'a')
 >>> split_numal("11a")
@@ -17,7 +18,7 @@ def split_numal(val):
         if not val[i].isdigit():
             return int(val[0:i] or '0'), val[i:]
     return int(val), ''
-        
+
 
 def numal_sort(a, b):
     """Sort a list numeric-alphabetically
@@ -33,6 +34,7 @@ def numal_sort(a, b):
     if(cmpnum == 0):
         return cmp(astr, bstr)
     return cmpnum
+
 
 def numal0_sort(a, b):
     """

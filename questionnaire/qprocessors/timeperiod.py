@@ -1,15 +1,16 @@
-from questionnaire import *
+from questionnaire import question_proc, answer_proc, add_type, AnswerException
 from django.utils.translation import ugettext as _, ugettext_lazy
 
 perioddict = {
-    "second" : ugettext_lazy("second(s)"),
-    "minute" : ugettext_lazy("minute(s)"),
-    "hour" : ugettext_lazy("hour(s)"),
-    "day" : ugettext_lazy("day(s)"),
-    "week" : ugettext_lazy("week(s)"),
-    "month" : ugettext_lazy("month(s)"),
-    "year" : ugettext_lazy("year(s)"),
+    "second": ugettext_lazy("second(s)"),
+    "minute": ugettext_lazy("minute(s)"),
+    "hour": ugettext_lazy("hour(s)"),
+    "day": ugettext_lazy("day(s)"),
+    "week": ugettext_lazy("week(s)"),
+    "month": ugettext_lazy("month(s)"),
+    "year": ugettext_lazy("year(s)"),
 }
+
 
 @question_proc('timeperiod')
 def question_timeperiod(request, question):
@@ -17,10 +18,10 @@ def question_timeperiod(request, question):
     if "units" in cd:
         units = cd["units"].split(',')
     else:
-        units = ["day","week","month","year"]
+        units = ["day", "week", "month", "year"]
     timeperiods = []
     if not units:
-        units = ["day","week","month","year"]
+        units = ["day", "week", "month", "year"]
 
     key1 = "question_%s" % question.number
     key2 = "question_%s_unit" % question.number
@@ -29,16 +30,17 @@ def question_timeperiod(request, question):
 
     for x in units:
         if x in perioddict:
-            timeperiods.append( (x, unicode(perioddict[x]), unitselected==x) )
+            timeperiods.append((x, unicode(perioddict[x]), unitselected == x))
     return {
-        "required" : "required" in cd,
-        "timeperiods" : timeperiods,
-        "value" : value,
+        "required": "required" in cd,
+        "timeperiods": timeperiods,
+        "value": value,
     }
+
 
 @answer_proc('timeperiod')
 def process_timeperiod(question, answer):
-    if not answer['ANSWER'] or not answer.has_key('unit'):
+    if not answer['ANSWER'] or "unit" not in answer.keys():
         raise AnswerException(_(u"Invalid time period"))
     period = answer['ANSWER'].strip()
     if period:
@@ -59,4 +61,3 @@ def process_timeperiod(question, answer):
     return "%s; %s" % (period, unit)
 
 add_type('timeperiod', 'Time Period [input, select]')
-
