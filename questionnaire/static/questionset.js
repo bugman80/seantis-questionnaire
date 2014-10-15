@@ -80,6 +80,7 @@ function addtrigger(elemid) {
  - do it for a total of 5 seconds by which time the page should've been sent
  - oscillate the sending class which does some fancy css transition trickery
 */
+
 (function($){
     $(document).ready(function() {
         $('#qform').submit(function() {

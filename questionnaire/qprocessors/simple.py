@@ -122,6 +122,7 @@ def process_simple(question, ansdict):
     if ans:
         return dumps([ans])
     return dumps([])
+
 add_type('open', 'Open Answer, single line [input]')
 add_type('open-textfield', 'Open Answer, multi-line [textarea]')
 add_type('choice-yesno', 'Yes/No Choice [radio]')

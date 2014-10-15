@@ -13,10 +13,15 @@ def question_choice(request, question):
     key = "question_%s" % question.number
     key2 = "question_%s_comment" % question.number
     val = cd.get('default', None)
+    val2 = ""
+    key2_selected = False
     
     if request.method == 'POST':
         if key in request.POST:
             val = request.POST[key]
+        if val == '_entry_':
+            key2_selected = True
+            val2 = request.POST.get(key2, '')
     else:
         # IMPORTANT!! we put subject=request.user.subject because 
         # only the author of the questionnaire can see his answers!! 
@@ -27,25 +32,30 @@ def question_choice(request, question):
         if answer_obj:
             answers = answer_obj.split_answer()
             if len(answers)>0:
-                val = answers[0]
-
+                if isinstance(answers[0], string_types):
+                    val = answers[0]
+                else:
+                    key2_selected = True 
+                    val2 = answers[0][0]
+    
     for choice in question.choices():
         choices.append( ( choice.value == val, choice, ) )
 
     if question.type == 'choice-freeform':
         jstriggers.append('%s_comment' % question.number)
-
+    
     return {
         'choices'   : choices,
-        'sel_entry' : val == '_entry_',
-        'qvalue'    : val or '',
+        'sel_entry' : key2_selected,
+        'qvalue'    : '_entry_' if key2_selected else (val or  ''),
         'required'  : True,
-        'comment'   : request.POST.get(key2, ""),
+        'comment'   : val2,
         'jstriggers': jstriggers,
     }
 
 @answer_proc('choice', 'choice-freeform')
 def process_choice(question, answer):
+        
     opt = answer['ANSWER'] or ''
     if not opt:
         raise AnswerException(_(u'You must select an option'))
