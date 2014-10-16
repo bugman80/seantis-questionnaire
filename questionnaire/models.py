@@ -1,13 +1,13 @@
-from django.db import models
-from transmeta import TransMeta
-from django.utils.translation import ugettext_lazy as _
-from questionnaire import QuestionChoices
-import re
-from utils import split_numal
 import json
-from parsers import parse_checks, ParseException
+import re
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import models
+from django.utils.translation import ugettext_lazy as _
+from parsers import parse_checks, ParseException
+from questionnaire import QuestionChoices
+from transmeta import TransMeta
 
 _numre = re.compile("(\d+)([a-z]+)", re.I)
 
@@ -21,28 +21,40 @@ class Subject(models.Model):
     ]
     user = models.OneToOneField(get_user_model(), blank=True, null=True)
     state = models.CharField(max_length=16, default="inactive",
-        choices = STATE_CHOICES, verbose_name=_('State'))
+                             choices=STATE_CHOICES, verbose_name=_('State'))
     surname = models.CharField(max_length=64, blank=True, null=True,
-        verbose_name=_('Surname'))
+                               verbose_name=_('Surname'))
     givenname = models.CharField(max_length=64, blank=True, null=True,
-        verbose_name=_('Given name'))
+                                 verbose_name=_('Given name'))
     email = models.EmailField(null=True, blank=True, verbose_name=_('Email'))
-    gender = models.CharField(max_length=8, default="unset", blank=True,
+    gender = models.CharField(
+        max_length=8,
+        default="unset",
+        blank=True,
         verbose_name=_('Gender'),
-        choices = ( ("unset", _("Unset")),
-                    ("male", _("Male")),
-                    ("female", _("Female")),
+        choices=(
+            ("unset", _("Unset")),
+            ("male", _("Male")),
+            ("female", _("Female")),
         )
     )
-    nextrun = models.DateField(verbose_name=_('Next Run'), blank=True, null=True)
-    formtype = models.CharField(max_length=16, default='email',
-        verbose_name = _('Form Type'),
-        choices = (
+    nextrun = models.DateField(verbose_name=_('Next Run'), blank=True,
+                               null=True)
+    formtype = models.CharField(
+        max_length=16,
+        default='email',
+        verbose_name=_('Form Type'),
+        choices=(
             ("email", _("Subject receives emails")),
-            ("paperform", _("Subject is sent paper form"),))
+            ("paperform", _("Subject is sent paper form")),
+        )
     )
-    language = models.CharField(max_length=2, default=settings.LANGUAGE_CODE,
-        verbose_name = _('Language'), choices = settings.LANGUAGES)
+    language = models.CharField(
+        max_length=2,
+        default=settings.LANGUAGE_CODE,
+        verbose_name=_('Language'),
+        choices=settings.LANGUAGES
+    )
 
     def __unicode__(self):
         return u'%s, %s (%s)' % (self.surname, self.givenname, self.email)
@@ -68,15 +80,19 @@ class Subject(models.Model):
 
 class Questionnaire(models.Model):
     name = models.CharField(max_length=128)
-    redirect_url = models.CharField(max_length=128, help_text="URL to redirect to when Questionnaire is complete. Macros: $SUBJECTID, $RUNID, $LANG", default="/static/complete.html")
+    redirect_url = models.CharField(
+        max_length=128,
+        help_text="URL to redirect to when Questionnaire is complete. Macros: $SUBJECTID, $RUNID, $LANG",
+        default="/static/complete.html"
+    )
 
     def __unicode__(self):
         return self.name
 
     def questionsets(self):
         if not hasattr(self, "__qscache"):
-            self.__qscache = \
-              QuestionSet.objects.filter(questionnaire=self).order_by('sortid')
+            self.__qscache = QuestionSet.objects.filter(
+                questionnaire=self).order_by('sortid')
         return self.__qscache
 
     def questions(self):
@@ -91,20 +107,28 @@ class Questionnaire(models.Model):
             ("management", "Management Tools")
         )
 
+
 class QuestionSet(models.Model):
     __metaclass__ = TransMeta
 
     "Which questions to display on a question page"
     questionnaire = models.ForeignKey(Questionnaire)
-    sortid = models.IntegerField() # used to decide which order to display in
+    sortid = models.IntegerField()  # used to decide which order to display in
     heading = models.CharField(max_length=64)
-    checks = models.CharField(max_length=128, blank=True,
-        help_text = """Current options are 'femaleonly' or 'maleonly' and shownif="QuestionNumber,Answer" which takes the same format as <tt>requiredif</tt> for questions.""")
-    text = models.TextField(u'Text', help_text="This is interpreted as Textile: <a href='http://en.wikipedia.org/wiki/Textile_%28markup_language%29' target='_blank'>http://en.wikipedia.org/wiki/Textile_(markup_language)</a>")
+    checks = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text="""Current options are 'femaleonly' or 'maleonly' and shownif="QuestionNumber,Answer" which takes the same format as <tt>requiredif</tt> for questions."""
+    )
+    text = models.TextField(
+        u'Text',
+        help_text="This is interpreted as Textile: <a href='http://en.wikipedia.org/wiki/Textile_%28markup_language%29' target='_blank'>http://en.wikipedia.org/wiki/Textile_(markup_language)</a>"
+    )
 
     def questions(self):
         if not hasattr(self, "__qcache"):
-            self.__qcache = list(Question.objects.filter(questionset=self.id).order_by('number'))
+            self.__qcache = list(Question.objects.filter(
+                questionset=self.id).order_by('number'))
         return self.__qcache
 
     def next(self):
@@ -149,11 +173,13 @@ class QuestionSet(models.Model):
 class RunInfo(models.Model):
     "Store the active/waiting questionnaire runs here"
     subject = models.ForeignKey(Subject)
-    random = models.CharField(max_length=32) # probably a randomized md5sum
+    random = models.CharField(max_length=32)  # probably a randomized md5sum
     runid = models.CharField(max_length=32)
-    # questionset should be set to the first QuestionSet initially, and to null on completion
+    # questionset should be set to the first QuestionSet initially,
+    # and to null on completion
     # ... although the RunInfo entry should be deleted then anyway.
-    questionset = models.ForeignKey(QuestionSet, blank=True, null=True) # or straight int?
+    questionset = models.ForeignKey(QuestionSet, blank=True,
+                                    null=True)  # or straight int?
     emailcount = models.IntegerField(default=0)
 
     created = models.DateTimeField(auto_now_add=True)
@@ -165,14 +191,14 @@ class RunInfo(models.Model):
     cookies = models.TextField(null=True, blank=True)
 
     tags = models.TextField(
-            blank=True,
-            help_text=u"Tags active on this run, separated by commas"
-        )
+        blank=True,
+        help_text=u"Tags active on this run, separated by commas"
+    )
 
     skipped = models.TextField(
-            blank=True,
-            help_text=u"A comma sepearted list of questions to skip"
-        )
+        blank=True,
+        help_text=u"A comma sepearted list of questions to skip"
+    )
 
     def save(self, **kwargs):
         self.random = (self.random or '').lower()
@@ -208,10 +234,10 @@ class RunInfo(models.Model):
                 del cookies[key]
         else:
             if type(value) in ('int', 'float'):
-                value=str(value)
+                value = str(value)
             cookies[key] = value
         cstr = json.dumps(cookies)
-        self.cookies=cstr
+        self.cookies = cstr
         self.save()
         self.__cookiecache = cookies
 
@@ -229,7 +255,8 @@ class RunInfo(models.Model):
         return self.__cookiecache
 
     def __unicode__(self):
-        return "%s: %s, %s" % (self.runid, self.subject.surname, self.subject.givenname)
+        return "%s: %s, %s" % (self.runid, self.subject.surname,
+                               self.subject.givenname)
 
     class Meta:
         verbose_name_plural = 'Run Info'
@@ -240,13 +267,13 @@ class RunInfoHistory(models.Model):
     runid = models.CharField(max_length=32)
     completed = models.DateField()
     tags = models.TextField(
-            blank=True,
-            help_text=u"Tags used on this run, separated by commas"
-        )
+        blank=True,
+        help_text=u"Tags used on this run, separated by commas"
+    )
     skipped = models.TextField(
-            blank=True,
-            help_text=u"A comma sepearted list of questions skipped by this run"
-        )
+        blank=True,
+        help_text=u"A comma sepearted list of questions skipped by this run"
+    )
     questionnaire = models.ForeignKey(Questionnaire)
 
     def __unicode__(self):
@@ -259,24 +286,40 @@ class RunInfoHistory(models.Model):
     class Meta:
         verbose_name_plural = 'Run Info History'
 
+
 class Question(models.Model):
     __metaclass__ = TransMeta
 
     questionset = models.ForeignKey(QuestionSet)
-    number = models.CharField(max_length=8, help_text=
-        "eg. <tt>1</tt>, <tt>2a</tt>, <tt>2b</tt>, <tt>3c</tt><br /> "
-        "Number is also used for ordering questions.")
+    number = models.CharField(
+        max_length=8,
+        help_text="eg. <tt>1</tt>, <tt>2a</tt>, <tt>2b</tt>, <tt>3c</tt><br /> "
+        "Number is also used for ordering questions."
+    )
     text = models.TextField(blank=True, verbose_name=_("Text"))
-    type = models.CharField(u"Type of question", max_length=32,
-        choices = QuestionChoices,
-        help_text = u"Determines the means of answering the question. " \
-        "An open question gives the user a single-line textfield, " \
-        "multiple-choice gives the user a number of choices he/she can " \
-        "choose from. If a question is multiple-choice, enter the choices " \
-        "this user can choose from below'.")
-    extra = models.CharField(u"Extra information", max_length=512, blank=True, null=True, help_text=u"Extra information (use  on question type)")
-    checks = models.CharField(u"Additional checks", max_length=512, blank=True,
-        null=True, help_text="Additional checks to be performed for this "
+    type = models.CharField(
+        u"Type of question",
+        max_length=32,
+        choices=QuestionChoices,
+        help_text=u"Determines the means of answering the question. "
+        "An open question gives the user a single-line textfield, "
+        "multiple-choice gives the user a number of choices he/she can "
+        "choose from. If a question is multiple-choice, enter the choices "
+        "this user can choose from below'."
+    )
+    extra = models.CharField(
+        u"Extra information",
+        max_length=512,
+        blank=True,
+        null=True,
+        help_text=u"Extra information (use  on question type)"
+    )
+    checks = models.CharField(
+        u"Additional checks",
+        max_length=512,
+        blank=True,
+        null=True,
+        help_text="Additional checks to be performed for this "
         "value (space separated)  <br /><br />"
         "For text fields, <tt>required</tt> is a valid check.<br />"
         "For yes/no choice, <tt>required</tt>, <tt>required-yes</tt>, "
@@ -287,9 +330,13 @@ class Question(models.Model):
         "a specific value.  "
         "You may also combine tests appearing in <tt>requiredif</tt> "
         "by joining them with the words <tt>and</tt> or <tt>or</tt>, "
-        'eg. <tt>requiredif="Q1,A or Q2,B"</tt>')
-    footer = models.TextField(u"Footer", help_text="Footer rendered below the question interpreted as textile", blank=True)
-
+        'eg. <tt>requiredif="Q1,A or Q2,B"</tt>'
+    )
+    footer = models.TextField(
+        u"Footer",
+        help_text="Footer rendered below the question interpreted as textile",
+        blank=True
+    )
 
     def questionnaire(self):
         return self.questionset.questionnaire
@@ -306,7 +353,8 @@ class Question(models.Model):
         return d
 
     def __unicode__(self):
-        return u'{%s} (%s) %s' % (unicode(self.questionset), self.number, self.text)
+        return u'{%s} (%s) %s' % (unicode(self.questionset), self.number,
+                                  self.text)
 
     def sameas(self):
         if self.type == 'sameas':
@@ -321,14 +369,18 @@ class Question(models.Model):
                         kwargs['questionset__questionnaire'] = self.questionset.questionnaire
                         break
 
-                self.__sameas = res = getattr(self, "__sameas", Question.objects.get(**kwargs))
+                self.__sameas = res = getattr(self, "__sameas",
+                                              Question.objects.get(**kwargs))
                 return res
             except Question.DoesNotExist:
-                return Question(type='comment') # replace with something benign
+                # replace with something benign
+                return Question(type='comment')
         return self
 
     def display_number(self):
-        "Return either the number alone or the non-number part of the question number indented"
+        """Return either the number alone or the non-number part of the
+        question number indented
+        """
         m = _numre.match(self.number)
         if m:
             sub = m.group(2)
@@ -384,13 +436,27 @@ class Choice(models.Model):
 
 
 class Answer(models.Model):
-    subject = models.ForeignKey(Subject, help_text = u'The user who supplied this answer')
-    question = models.ForeignKey(Question, help_text = u"The question that this is an answer to")
-    runid = models.CharField(u'RunID', help_text = u"The RunID (ie. year)", max_length=32)
+    subject = models.ForeignKey(
+        Subject,
+        help_text=u'The user who supplied this answer'
+    )
+    question = models.ForeignKey(
+        Question,
+        help_text=u"The question that this is an answer to"
+    )
+    runid = models.CharField(
+        u'RunID',
+        help_text=u"The RunID (ie. year)",
+        max_length=32
+    )
     answer = models.TextField()
 
     def __unicode__(self):
-        return "Answer(%s: %s, %s)" % (self.question.number, self.subject.surname, self.subject.givenname)
+        return "Answer(%s: %s, %s)" % (
+            self.question.number,
+            self.subject.surname,
+            self.subject.givenname
+        )
 
     def split_answer(self):
         """
